@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Detect errors that are silently discarded with blank identifier.
+# Detect errors that are silently discarded with blank identifier or no return capture.
 
 package vulnetix.rules.gosec_g104
 
@@ -53,6 +53,27 @@ findings contains finding if {
 	finding := {
 		"rule_id": metadata.id,
 		"message": "Return value (possibly error) is explicitly discarded",
+		"artifact_uri": path,
+		"severity": metadata.severity,
+		"level": metadata.level,
+		"start_line": i + 1,
+		"snippet": line,
+	}
+}
+
+findings contains finding if {
+	some path in object.keys(input.file_contents)
+	endswith(path, ".go")
+	lines := split(input.file_contents[path], "\n")
+	some i, line in lines
+	# Bare call to a known error-returning stdlib function with no assignment
+	regex.match(`^\s*os\.(Remove|Mkdir|MkdirAll|Chmod|Chown|Link|Symlink|Rename|Truncate|WriteFile|MkdirTemp)\s*\(`, line)
+	not contains(line, " = ")
+	not contains(line, " := ")
+	not startswith(trim_space(line), "//")
+	finding := {
+		"rule_id": metadata.id,
+		"message": "Error return value from os call is not captured — unhandled errors hide failures",
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,

@@ -40,3 +40,24 @@ findings contains finding if {
 		"snippet": line,
 	}
 }
+
+findings contains finding if {
+	some path in object.keys(input.file_contents)
+	endswith(path, ".go")
+	content := input.file_contents[path]
+	# File uses strconv.Atoi and elsewhere narrows to a smaller integer type
+	contains(content, "strconv.Atoi")
+	lines := split(content, "\n")
+	some i, line in lines
+	regex.match(`\bint(32|16)\s*\([a-zA-Z_][a-zA-Z0-9_]*\)`, line)
+	not startswith(trim_space(line), "//")
+	finding := {
+		"rule_id": metadata.id,
+		"message": "int32/int16 narrowing in file that uses strconv.Atoi — result may overflow; use strconv.ParseInt with explicit bit size",
+		"artifact_uri": path,
+		"severity": metadata.severity,
+		"level": metadata.level,
+		"start_line": i + 1,
+		"snippet": line,
+	}
+}

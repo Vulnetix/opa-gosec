@@ -25,18 +25,20 @@ metadata := {
 findings contains finding if {
 	some path in object.keys(input.file_contents)
 	endswith(path, ".go")
-	lines := split(input.file_contents[path], "\n")
+	content := input.file_contents[path]
+	# File contains a range loop
+	regex.match(`for\s+\w+\s*,\s*\w+\s*:=\s*range\b`, content)
+	lines := split(content, "\n")
 	some i, line in lines
-	# Taking address of the range variable — classic aliasing pattern
-	regex.match(`&\s*[a-zA-Z_][a-zA-Z0-9_]*\s*[,\)]`, line)
-	# Previous lines within nearby context contain a range statement
-	i > 0
-	prev_line := lines[i - 1]
-	regex.match(`for\s+\w+\s*,\s*\w+\s*:=\s*range\b`, prev_line)
+	# Taking address of a variable — word boundary ensures we don't match operator &^
+	regex.match(`&\s*[a-zA-Z_][a-zA-Z0-9_]*\b`, line)
 	not startswith(trim_space(line), "//")
+	# One of the nearby preceding lines (up to 5 back) is the range statement
+	j := numbers.range(max([0, i - 5]), i)[_]
+	regex.match(`for\s+\w+\s*,\s*\w+\s*:=\s*range\b`, lines[j])
 	finding := {
 		"rule_id": metadata.id,
-		"message": "Address of range loop variable taken — in Go < 1.22 this aliases to the same memory; copy the variable first",
+		"message": "Address of loop variable taken inside range loop — in Go < 1.22 all iterations share the same address; copy the variable first",
 		"artifact_uri": path,
 		"severity": metadata.severity,
 		"level": metadata.level,

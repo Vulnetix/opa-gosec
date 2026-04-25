@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Detect permissive CORS configuration allowing all origins.
+# Detect overbroad CrossOriginProtection bypass patterns and permissive CORS configuration.
 
 package vulnetix.rules.gosec_g121
 
@@ -7,19 +7,38 @@ import rego.v1
 
 metadata := {
 	"id": "GOSEC-G121",
-	"name": "CORS AllowAll or wildcard origin",
-	"description": "CORS is configured to allow all origins via AllowAll() or a wildcard (*). This disables the Same-Origin Policy protection for this endpoint, potentially exposing APIs to cross-site request forgery.",
-	"help_uri": "https://github.com/securego/gosec/blob/master/rules/cors.go",
+	"name": "Overbroad cross-origin protection bypass",
+	"description": "AddInsecureBypassPattern is called with an overly broad path pattern (e.g. \"/\"), disabling cross-origin protections for all or too many routes. Restrict bypass patterns to the minimum necessary paths.",
+	"help_uri": "https://github.com/securego/gosec/blob/master/rules/cross_origin_bypass.go",
 	"languages": ["go"],
-	"severity": "low",
+	"severity": "medium",
 	"level": "warning",
 	"kind": "sast",
-	"cwe": [346],
+	"cwe": [284],
 	"capec": [],
 	"attack_technique": [],
 	"cvssv4": "",
 	"cwss": "",
-	"tags": ["go", "gosec", "cors", "http"],
+	"tags": ["go", "gosec", "cors", "http", "csrf"],
+}
+
+findings contains finding if {
+	some path in object.keys(input.file_contents)
+	endswith(path, ".go")
+	lines := split(input.file_contents[path], "\n")
+	some i, line in lines
+	# Overbroad bypass pattern — root or wildcard path disables protection for everything
+	contains(line, "AddInsecureBypassPattern")
+	not startswith(trim_space(line), "//")
+	finding := {
+		"rule_id": metadata.id,
+		"message": "AddInsecureBypassPattern disables cross-origin protections — use a narrowly scoped path instead of '/' or wildcards",
+		"artifact_uri": path,
+		"severity": metadata.severity,
+		"level": metadata.level,
+		"start_line": i + 1,
+		"snippet": line,
+	}
 }
 
 findings contains finding if {

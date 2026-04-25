@@ -57,3 +57,22 @@ findings contains finding if {
 		"snippet": line,
 	}
 }
+
+findings contains finding if {
+	some path in object.keys(input.file_contents)
+	endswith(path, ".go")
+	lines := split(input.file_contents[path], "\n")
+	some i, line in lines
+	# os.Create with an explicit shared temp directory path
+	regex.match(`os\.Create\s*\(\s*"/(tmp|var/tmp)/`, line)
+	not startswith(trim_space(line), "//")
+	finding := {
+		"rule_id": metadata.id,
+		"message": "File created directly in shared /tmp directory — use os.CreateTemp with a private subdirectory to avoid symlink attacks",
+		"artifact_uri": path,
+		"severity": metadata.severity,
+		"level": metadata.level,
+		"start_line": i + 1,
+		"snippet": line,
+	}
+}

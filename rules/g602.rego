@@ -40,3 +40,25 @@ findings contains finding if {
 		"snippet": line,
 	}
 }
+
+findings contains finding if {
+	some path in object.keys(input.file_contents)
+	endswith(path, ".go")
+	content := input.file_contents[path]
+	# File creates a zero-length slice with make([]T, 0)
+	regex.match(`make\s*\(\s*\[\]`, content)
+	lines := split(content, "\n")
+	some i, line in lines
+	# A slice expression using a non-zero constant upper bound — s[:N] or s[0:N]
+	regex.match(`\w+\s*\[\s*[0-9]*\s*:\s*[1-9][0-9]*\s*\]`, line)
+	not startswith(trim_space(line), "//")
+	finding := {
+		"rule_id": metadata.id,
+		"message": "Constant slice upper bound on a possibly empty slice — verify the slice length is at least the upper bound",
+		"artifact_uri": path,
+		"severity": metadata.severity,
+		"level": metadata.level,
+		"start_line": i + 1,
+		"snippet": line,
+	}
+}
