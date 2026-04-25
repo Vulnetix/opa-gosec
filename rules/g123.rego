@@ -26,9 +26,10 @@ findings contains finding if {
 	some path in object.keys(input.file_contents)
 	endswith(path, ".go")
 	content := input.file_contents[path]
-	# VerifyPeerCertificate is set but VerifyConnection is absent
+	# VerifyPeerCertificate is set as a field but VerifyConnection is not set as a field
 	contains(content, "VerifyPeerCertificate")
-	not contains(content, "VerifyConnection")
+	# Check for actual field assignment (not just a comment mention) using regex
+	not regex.match(`(?s).*\bVerifyConnection\s*:`, content)
 	lines := split(content, "\n")
 	some i, line in lines
 	contains(line, "VerifyPeerCertificate")
